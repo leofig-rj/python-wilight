@@ -1,4 +1,4 @@
-"""HLK-SW16 Protocol Support."""
+"""WiLight Protocol Support."""
 import asyncio
 from collections import deque
 import logging
@@ -6,14 +6,14 @@ import codecs
 import binascii
 
 
-class SW16Protocol(asyncio.Protocol):
-    """HLK-SW16 relay control protocol."""
+class WiLightProtocol(asyncio.Protocol):
+    """WiLight device control protocol."""
 
     transport = None  # type: asyncio.Transport
 
     def __init__(self, client, disconnect_callback=None, loop=None,
                  logger=None):
-        """Initialize the HLK-SW16 protocol."""
+        """Initialize the WiLight protocol."""
         self.client = client
         self.loop = loop
         self.logger = logger
@@ -181,14 +181,14 @@ class SW16Protocol(asyncio.Protocol):
             asyncio.ensure_future(self.disconnect_callback(), loop=self.loop)
 
 
-class SW16Client:
-    """HLK-SW16 client wrapper class."""
+class WiLightClient:
+    """WiLight client wrapper class."""
 
-    def __init__(self, host, port=8080,
+    def __init__(self, host, port=46000,
                  disconnect_callback=None, reconnect_callback=None,
                  loop=None, logger=None, timeout=10, reconnect_interval=10,
                  keep_alive_interval=3):
-        """Initialize the HLK-SW16 client wrapper."""
+        """Initialize the WiLight client wrapper."""
         if loop:
             self.loop = loop
         else:
@@ -220,7 +220,7 @@ class SW16Client:
         """Set up the connection with automatic retry."""
         while True:
             fut = self.loop.create_connection(
-                lambda: SW16Protocol(
+                lambda: WiLightProtocol(
                     self,
                     disconnect_callback=self.handle_disconnect_callback,
                     loop=self.loop, logger=self.logger),
@@ -320,14 +320,14 @@ class SW16Client:
         return state
 
 
-async def create_hlk_sw16_connection(port=None, host=None,
+async def create_wilight_connection(port=None, host=None,
                                      disconnect_callback=None,
                                      reconnect_callback=None, loop=None,
                                      logger=None, timeout=None,
                                      reconnect_interval=None,
                                      keep_alive_interval=None):
-    """Create HLK-SW16 Client class."""
-    client = SW16Client(host, port=port,
+    """Create WiLight Client class."""
+    client = WiLightClient(host, port=port,
                         disconnect_callback=disconnect_callback,
                         reconnect_callback=reconnect_callback,
                         loop=loop, logger=logger,
