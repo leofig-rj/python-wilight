@@ -1,16 +1,19 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 from setuptools import setup
 
+version = '0.0.1'
+
 setup(
-        name='hlk-sw16',
-        version='0.0.8',
-        description='Python client for HLK-SW16',
-        url='https://github.com/jameshilliard/hlk-sw16',
-        author='James Hilliard',
-        author_email='james.hilliard1@gmail.com',
+        name='wilight',
+        version=version,
+        description='Python client for WiLight',
+        url='https://github.com/leofig-rj/python-wilight',
+        author='Leonardo Figueiro',
+        author_email='leoagfig@gmail.com',
         license='MIT',
         packages=[
-            'hlk_sw16',
+            'wilight',
             ],
         )
