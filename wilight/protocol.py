@@ -184,7 +184,7 @@ class WiLightProtocol(asyncio.Protocol):
 class WiLightClient:
     """WiLight client wrapper class."""
 
-    def __init__(self, host, port=46000,
+    def __init__(self, device_id, host, port, model, config_ex,
                  disconnect_callback=None, reconnect_callback=None,
                  loop=None, logger=None, timeout=10, reconnect_interval=10,
                  keep_alive_interval=3):
@@ -197,8 +197,11 @@ class WiLightClient:
             self.logger = logger
         else:
             self.logger = logging.getLogger(__name__)
+        self.device_id = device_id
         self.host = host
         self.port = port
+        self.model = model
+        self.config_ex = config_ex
         self.transport = None
         self.protocol = None
         self.is_connected = False
@@ -320,14 +323,18 @@ class WiLightClient:
         return state
 
 
-async def create_wilight_connection(port=None, host=None,
+async def create_wilight_connection(device_id=None,
+                                     host=None,
+                                     port=None,
+                                     model=None,
+                                     config_ex=None,
                                      disconnect_callback=None,
                                      reconnect_callback=None, loop=None,
                                      logger=None, timeout=None,
                                      reconnect_interval=None,
                                      keep_alive_interval=None):
     """Create WiLight Client class."""
-    client = WiLightClient(host, port=port,
+    client = WiLightClient(device_id=device_id, host, port=port, model=model, config_ex=config_ex,
                         disconnect_callback=disconnect_callback,
                         reconnect_callback=reconnect_callback,
                         loop=loop, logger=logger,
