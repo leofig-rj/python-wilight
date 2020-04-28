@@ -115,7 +115,8 @@ class WiLightProtocol(asyncio.Protocol):
             self.logger.debug(states)
             if self.client.in_transaction:
                 self.client.in_transaction = False
-                self.client.active_packet = False
+#                self.client.active_packet = False
+                self.client.active_packet = None
                 self.client.active_transaction.set_result(states)
                 while self.client.status_waiters:
                     waiter = self.client.status_waiters.popleft()
@@ -137,7 +138,7 @@ class WiLightProtocol(asyncio.Protocol):
         self.client.in_transaction = True
         self.client.active_packet = packet
         self.reset_cmd_timeout()
-        self.transport.write(packet.encode())
+        self.transport.write(packet)
 
     @staticmethod
     def format_packet(command, device_id):
@@ -263,10 +264,10 @@ class WiLightClient:
         if switch is not None:
             switch = codecs.decode(switch.rjust(2, '0'), 'hex')
             self.logger.warning('switch turn_on ok: %s', switch)
-            packet = self.protocol.format_packet("000100", self.client.device_id)
+            packet = self.protocol.format_packet("000100", self.device_id)
         else:
             self.logger.warning('switch turn_on nok')
-            packet = self.protocol.format_packet("000000", self.client.device_id)
+            packet = self.protocol.format_packet("000000", self.device_id)
         states = await self._send(packet)
         return states
 
@@ -275,10 +276,10 @@ class WiLightClient:
         if switch is not None:
             switch = codecs.decode(switch.rjust(2, '0'), 'hex')
             self.logger.warning('switch turn_off ok: %s', switch)
-            packet = self.protocol.format_packet("002000", self.client.device_id)
+            packet = self.protocol.format_packet("002000", self.device_id)
         else:
             self.logger.warning('switch turn_off nok')
-            packet = self.protocol.format_packet("000000", self.client.device_id)
+            packet = self.protocol.format_packet("000000", self.device_id)
         states = await self._send(packet)
         return states
 
@@ -301,7 +302,7 @@ class WiLightClient:
                 self.status_waiters.append(fut)
                 state = await fut
             else:
-                packet = self.protocol.format_packet("000000", self.client.device_id)
+                packet = self.protocol.format_packet("000000", self.device_id)
                 self.logger.warning('sending packet status 1: %s', packet)
                 state = await self._send(packet)
         return state
