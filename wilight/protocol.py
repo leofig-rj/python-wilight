@@ -81,6 +81,7 @@ class WiLightProtocol(asyncio.Protocol):
         if len(raw_packet) < 60:
             return False
         b_device_id = self.client.device_id.encode()
+        self.logger.warning('b_device_id %s', b_device_id)
         for i in range(0, 12):
             if raw_packet[i + 1] != b_device_id[i]:
                 return False
