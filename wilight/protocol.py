@@ -268,7 +268,7 @@ class WiLightClient:
             self.logger.warning('switch turn_on ok: %s', switch)
             comandos_on = ["001000", "003000", "005000"]
             #packet = self.protocol.format_packet("000100", self.num_serial)
-            packet = self.protocol.format_packet(comandos_on[parse_str(switch)], self.num_serial)
+            packet = self.protocol.format_packet(comandos_on[int(switch)], self.num_serial)
         else:
             self.logger.warning('switch turn_on nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
@@ -282,7 +282,7 @@ class WiLightClient:
             self.logger.warning('switch turn_off ok: %s', switch)
             comandos_off = ["002000", "004000", "006000"]
             #packet = self.protocol.format_packet("002000", self.num_serial)
-            packet = self.protocol.format_packet(comandos_off[parse_str(switch)], self.num_serial)
+            packet = self.protocol.format_packet(comandos_off[int(switch)], self.num_serial)
         else:
             self.logger.warning('switch turn_off nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
