@@ -31,7 +31,8 @@ class WiLightProtocol(asyncio.Protocol):
     def _send_keepalive_packet(self):
         """Send a keep alive packet."""
         if not self.client.in_transaction:
-            packet = self.format_packet(b"\x12")
+            packet = self.format_packet("000000", self.client.device_id)
+            self.logger.warning('sending packet keep alive: %s', packet)
             self.logger.debug('sending keep alive packet')
             self.transport.write(packet)
 
@@ -56,75 +57,53 @@ class WiLightProtocol(asyncio.Protocol):
 
     def data_received(self, data):
         """Add incoming data to buffer."""
-        self._buffer += data
+#        self._buffer += data
+        self._buffer = data
+        self.logger.warning('recebeu data: %s', self._buffer)
         self._handle_lines()
 
     def _handle_lines(self):
         """Assemble incoming data into per-line packets."""
-        while b'\xdd' in self._buffer:
-            linebuf, self._buffer = self._buffer.rsplit(b'\xdd', 1)
-            line = linebuf[-19:]
-            self._buffer += linebuf[:-19]
-            if self._valid_packet(line):
+        if b'&' in self._buffer:
+            line = self._buffer[0:len(self._buffer)]
+            if self._valid_packet(self, line):
+                self.logger.warning('recebeu data valida')
                 self._handle_raw_packet(line)
             else:
-                self.logger.warning('dropping invalid data: %s',
-                                    binascii.hexlify(line))
+                self.logger.warning('dropping invalid data: %s', line)
 
     @staticmethod
-    def _valid_packet(raw_packet):
+    def _valid_packet(self, raw_packet):
         """Validate incoming packet."""
-        if raw_packet[0:1] != b'\xcc':
+        if raw_packet[0:1] != b'&':
             return False
-        if len(raw_packet) != 19:
+#        self.logger.warning('len %i', len(raw_packet))
+        if len(raw_packet) < 60:
             return False
-        checksum = 0
-        for i in range(1, 17):
-            checksum += raw_packet[i]
-        if checksum != raw_packet[18]:
-            return False
+        b_device_id = self.client.device_id.encode()
+        for i in range(0, 12):
+            if raw_packet[i + 1] != b_device_id[i]:
+                return False
         return True
 
     def _handle_raw_packet(self, raw_packet):
         """Parse incoming packet."""
-        if raw_packet[1:2] == b'\x1f':
-            self._reset_timeout()
-            year = raw_packet[2]
-            month = raw_packet[3]
-            day = raw_packet[4]
-            hour = raw_packet[5]
-            minute = raw_packet[6]
-            sec = raw_packet[7]
-            week = raw_packet[8]
-            self.logger.debug(
-                'received date: Year: %s, Month: %s, Day: %s, Hour: %s, '
-                'Minute: %s, Sec: %s, Week %s',
-                year, month, day, hour, minute, sec, week)
-        elif raw_packet[1:2] == b'\x0e':
-            self._reset_timeout()
-            sec = raw_packet[2]
-            minute = raw_packet[3]
-            hour = raw_packet[4]
-            day = raw_packet[5]
-            month = raw_packet[6]
-            week = raw_packet[7]
-            year = raw_packet[8]
-            self.logger.debug(
-                'received date: Year: %s, Month: %s, Day: %s, Hour: %s, '
-                'Minute: %s, Sec: %s, Week %s',
-                year, month, day, hour, minute, sec, week)
-        elif raw_packet[1:2] == b'\x0c':
+        self.logger.warning('handle data: %s', raw_packet)
+        if raw_packet[0:1] == b'&':
             self._reset_timeout()
             states = {}
             changes = []
-            for switch in range(0, 16):
-                if raw_packet[2+switch:3+switch] == b'\x01':
+            for switch in range(0, 3):
+#                self.logger.warning('estado switch %i: %s', switch, raw_packet[23+switch:24+switch])
+                if raw_packet[23+switch:24+switch] == b'1':
+                    self.logger.warning('estado switch %i: %s', switch, raw_packet[23+switch:24+switch])
                     states[format(switch, 'x')] = True
                     if (self.client.states.get(format(switch, 'x'), None)
                             is not True):
                         changes.append(format(switch, 'x'))
                         self.client.states[format(switch, 'x')] = True
-                elif raw_packet[2+switch:3+switch] == b'\x02':
+                elif raw_packet[23+switch:24+switch] == b'0':
+                    self.logger.warning('estado switch %i: %s', switch, raw_packet[23+switch:24+switch])
                     states[format(switch, 'x')] = False
                     if (self.client.states.get(format(switch, 'x'), None)
                             is not False):
@@ -148,26 +127,23 @@ class WiLightProtocol(asyncio.Protocol):
             elif self._cmd_timeout:
                 self._cmd_timeout.cancel()
         else:
-            self.logger.warning('received unknown packet: %s',
-                                binascii.hexlify(raw_packet))
+            self.logger.warning('received unknown packet: %s', raw_packet)
 
     def send_packet(self):
         """Write next packet in send queue."""
         waiter, packet = self.client.waiters.popleft()
-        self.logger.debug('sending packet: %s', binascii.hexlify(packet))
+        self.logger.warning('sending packet send_packet: %s', packet)
         self.client.active_transaction = waiter
         self.client.in_transaction = True
         self.client.active_packet = packet
         self.reset_cmd_timeout()
-        self.transport.write(packet)
+        self.transport.write(packet.encode())
 
     @staticmethod
-    def format_packet(command):
+    def format_packet(command, device_id):
         """Format packet to be sent."""
-        frame_header = b"\xaa"
-        verify = b"\x0b"
-        send_delim = b"\xbb"
-        return frame_header + command.ljust(17, b"\x00") + verify + send_delim
+        frame_header = b"!" + device_id.encode()
+        return frame_header + command.encode()
 
     def connection_lost(self, exc):
         """Log when connection is closed, if needed call callback."""
@@ -263,7 +239,8 @@ class WiLightClient:
             if self.in_transaction:
                 self.protocol.transport.write(self.active_packet)
             else:
-                packet = self.protocol.format_packet(b"\x1e")
+                packet = self.protocol.format_packet("000000", self.device_id)
+                self.logger.warning('sending packet disconnected: %s', packet)
                 self.protocol.transport.write(packet)
 
     def register_status_callback(self, callback, switch):
@@ -274,6 +251,7 @@ class WiLightClient:
 
     def _send(self, packet):
         """Add packet to send queue."""
+        self.logger.warning('sending packet _send: %s', packet)
         fut = self.loop.create_future()
         self.waiters.append((fut, packet))
         if self.waiters and self.in_transaction is False:
@@ -284,9 +262,11 @@ class WiLightClient:
         """Turn on relay."""
         if switch is not None:
             switch = codecs.decode(switch.rjust(2, '0'), 'hex')
-            packet = self.protocol.format_packet(b"\x10" + switch + b"\x01")
+            self.logger.warning('switch turn_on ok: %s', switch)
+            packet = self.protocol.format_packet("000100", self.client.device_id)
         else:
-            packet = self.protocol.format_packet(b"\x0a")
+            self.logger.warning('switch turn_on nok')
+            packet = self.protocol.format_packet("000000", self.client.device_id)
         states = await self._send(packet)
         return states
 
@@ -294,9 +274,11 @@ class WiLightClient:
         """Turn off relay."""
         if switch is not None:
             switch = codecs.decode(switch.rjust(2, '0'), 'hex')
-            packet = self.protocol.format_packet(b"\x10" + switch + b"\x02")
+            self.logger.warning('switch turn_off ok: %s', switch)
+            packet = self.protocol.format_packet("002000", self.client.device_id)
         else:
-            packet = self.protocol.format_packet(b"\x0b")
+            self.logger.warning('switch turn_off nok')
+            packet = self.protocol.format_packet("000000", self.client.device_id)
         states = await self._send(packet)
         return states
 
@@ -309,7 +291,8 @@ class WiLightClient:
                 states = await fut
                 state = states[switch]
             else:
-                packet = self.protocol.format_packet(b"\x1e")
+                packet = self.protocol.format_packet("000000", self.client.device_id)
+                self.logger.warning('sending packet status 1: %s', packet)
                 states = await self._send(packet)
                 state = states[switch]
         else:
@@ -318,7 +301,8 @@ class WiLightClient:
                 self.status_waiters.append(fut)
                 state = await fut
             else:
-                packet = self.protocol.format_packet(b"\x1e")
+                packet = self.protocol.format_packet("000000", self.client.device_id)
+                self.logger.warning('sending packet status 1: %s', packet)
                 state = await self._send(packet)
         return state
 
@@ -334,7 +318,7 @@ async def create_wilight_connection(device_id=None,
                                      reconnect_interval=None,
                                      keep_alive_interval=None):
     """Create WiLight Client class."""
-    client = WiLightClient(device_id=device_id, host, port=port, model=model, config_ex=config_ex,
+    client = WiLightClient(device_id=device_id, host=host, port=port, model=model, config_ex=config_ex,
                         disconnect_callback=disconnect_callback,
                         reconnect_callback=reconnect_callback,
                         loop=loop, logger=logger,

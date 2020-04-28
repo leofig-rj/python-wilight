@@ -6,9 +6,11 @@ import setuptools
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+version = '0.0.1'
+
 setuptools.setup(
-    name="wilight-leofig-rj", # Replace with your own username
-    version="0.0.1",
+    name="wilight",
+    version=version,
     author="Leonardo Figueiro",
     author_email="leoagfig@gmail.com",
     description="Python client for WiLight",
