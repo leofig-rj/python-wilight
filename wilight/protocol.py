@@ -59,7 +59,7 @@ class WiLightProtocol(asyncio.Protocol):
         """Add incoming data to buffer."""
 #        self._buffer += data
         self._buffer = data
-        self.logger.warning('recebeu data: %s', self._buffer)
+        #self.logger.warning('recebeu data: %s', self._buffer)
         self._handle_lines()
 
     def _handle_lines(self):
@@ -67,7 +67,7 @@ class WiLightProtocol(asyncio.Protocol):
         if b'&' in self._buffer:
             line = self._buffer[0:len(self._buffer)]
             if self._valid_packet(self, line):
-                self.logger.warning('recebeu data valida')
+                #self.logger.warning('recebeu data valida')
                 self._handle_raw_packet(line)
             else:
                 self.logger.warning('dropping invalid data: %s', line)
@@ -81,7 +81,7 @@ class WiLightProtocol(asyncio.Protocol):
         if len(raw_packet) < 60:
             return False
         b_num_serial = self.client.num_serial.encode()
-        self.logger.warning('b_num_serial %s', b_num_serial)
+        #self.logger.warning('b_num_serial %s', b_num_serial)
         for i in range(0, 12):
             if raw_packet[i + 1] != b_num_serial[i]:
                 return False
@@ -89,7 +89,7 @@ class WiLightProtocol(asyncio.Protocol):
 
     def _handle_raw_packet(self, raw_packet):
         """Parse incoming packet."""
-        self.logger.warning('handle data: %s', raw_packet)
+        #self.logger.warning('handle data: %s', raw_packet)
         if raw_packet[0:1] == b'&':
             self._reset_timeout()
             states = {}
@@ -264,9 +264,11 @@ class WiLightClient:
     async def turn_on(self, switch=None):
         """Turn on relay."""
         if switch is not None:
-            switch = codecs.decode(switch.rjust(2, '0'), 'hex')
+            #switch = codecs.decode(switch.rjust(2, '0'), 'hex')
             self.logger.warning('switch turn_on ok: %s', switch)
-            packet = self.protocol.format_packet("000100", self.num_serial)
+            comandos_on = ["001000", "003000", "005000"]
+            #packet = self.protocol.format_packet("000100", self.num_serial)
+            packet = self.protocol.format_packet(comandos_on[switch], self.num_serial)
         else:
             self.logger.warning('switch turn_on nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
@@ -276,9 +278,11 @@ class WiLightClient:
     async def turn_off(self, switch=None):
         """Turn off relay."""
         if switch is not None:
-            switch = codecs.decode(switch.rjust(2, '0'), 'hex')
+            #switch = codecs.decode(switch.rjust(2, '0'), 'hex')
             self.logger.warning('switch turn_off ok: %s', switch)
-            packet = self.protocol.format_packet("002000", self.num_serial)
+            comandos_off = ["002000", "004000", "006000"]
+            #packet = self.protocol.format_packet("002000", self.num_serial)
+            packet = self.protocol.format_packet(comandos_off[switch], self.num_serial)
         else:
             self.logger.warning('switch turn_off nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
