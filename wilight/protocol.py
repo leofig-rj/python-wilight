@@ -31,7 +31,7 @@ class WiLightProtocol(asyncio.Protocol):
     def _send_keepalive_packet(self):
         """Send a keep alive packet."""
         if not self.client.in_transaction:
-            packet = self.format_packet("000000", self.client.device_id)
+            packet = self.format_packet("000000", self.client.num_serial)
             self.logger.warning('sending packet keep alive: %s', packet)
             self.logger.debug('sending keep alive packet')
             self.transport.write(packet)
@@ -80,10 +80,10 @@ class WiLightProtocol(asyncio.Protocol):
 #        self.logger.warning('len %i', len(raw_packet))
         if len(raw_packet) < 60:
             return False
-        b_device_id = self.client.device_id.encode()
-        self.logger.warning('b_device_id %s', b_device_id)
+        b_num_serial = self.client.num_serial.encode()
+        self.logger.warning('b_num_serial %s', b_num_serial)
         for i in range(0, 12):
-            if raw_packet[i + 1] != b_device_id[i]:
+            if raw_packet[i + 1] != b_num_serial[i]:
                 return False
         return True
 
@@ -142,9 +142,9 @@ class WiLightProtocol(asyncio.Protocol):
         self.transport.write(packet)
 
     @staticmethod
-    def format_packet(command, device_id):
+    def format_packet(command, num_serial):
         """Format packet to be sent."""
-        frame_header = b"!" + device_id.encode()
+        frame_header = b"!" + num_serial.encode()
         return frame_header + command.encode()
 
     def connection_lost(self, exc):
@@ -175,6 +175,7 @@ class WiLightClient:
             self.logger = logger
         else:
             self.logger = logging.getLogger(__name__)
+        self.num_serial = device_id[2:]
         self.device_id = device_id
         self.host = host
         self.port = port
@@ -241,7 +242,7 @@ class WiLightClient:
             if self.in_transaction:
                 self.protocol.transport.write(self.active_packet)
             else:
-                packet = self.protocol.format_packet("000000", self.device_id)
+                packet = self.protocol.format_packet("000000", self.num_serial)
                 self.logger.warning('sending packet disconnected: %s', packet)
                 self.protocol.transport.write(packet)
 
@@ -265,10 +266,10 @@ class WiLightClient:
         if switch is not None:
             switch = codecs.decode(switch.rjust(2, '0'), 'hex')
             self.logger.warning('switch turn_on ok: %s', switch)
-            packet = self.protocol.format_packet("000100", self.device_id)
+            packet = self.protocol.format_packet("000100", self.num_serial)
         else:
             self.logger.warning('switch turn_on nok')
-            packet = self.protocol.format_packet("000000", self.device_id)
+            packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
 
@@ -277,10 +278,10 @@ class WiLightClient:
         if switch is not None:
             switch = codecs.decode(switch.rjust(2, '0'), 'hex')
             self.logger.warning('switch turn_off ok: %s', switch)
-            packet = self.protocol.format_packet("002000", self.device_id)
+            packet = self.protocol.format_packet("002000", self.num_serial)
         else:
             self.logger.warning('switch turn_off nok')
-            packet = self.protocol.format_packet("000000", self.device_id)
+            packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
 
@@ -293,7 +294,7 @@ class WiLightClient:
                 states = await fut
                 state = states[switch]
             else:
-                packet = self.protocol.format_packet("000000", self.device_id)
+                packet = self.protocol.format_packet("000000", self.num_serial)
                 self.logger.warning('sending packet status 1: %s', packet)
                 states = await self._send(packet)
                 state = states[switch]
@@ -303,7 +304,7 @@ class WiLightClient:
                 self.status_waiters.append(fut)
                 state = await fut
             else:
-                packet = self.protocol.format_packet("000000", self.device_id)
+                packet = self.protocol.format_packet("000000", self.num_serial)
                 self.logger.warning('sending packet status 1: %s', packet)
                 state = await self._send(packet)
         return state
