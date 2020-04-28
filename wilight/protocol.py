@@ -291,7 +291,7 @@ class WiLightClient:
                 states = await fut
                 state = states[switch]
             else:
-                packet = self.protocol.format_packet("000000", self.client.device_id)
+                packet = self.protocol.format_packet("000000", self.device_id)
                 self.logger.warning('sending packet status 1: %s', packet)
                 states = await self._send(packet)
                 state = states[switch]
