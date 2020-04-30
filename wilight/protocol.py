@@ -68,68 +68,115 @@ class WiLightProtocol(asyncio.Protocol):
             line = self._buffer[0:len(self._buffer)]
             if self._valid_packet(self, line):
                 #self.logger.warning('recebeu data valida')
-                self._handle_raw_packet(line)
+                self._handle_packet(line)
             else:
                 self.logger.warning('dropping invalid data: %s', line)
 
     @staticmethod
-    def _valid_packet(self, raw_packet):
+    def _valid_packet(self, packet):
         """Validate incoming packet."""
-        if raw_packet[0:1] != b'&':
+        if packet[0:1] != b'&':
             return False
-#        self.logger.warning('len %i', len(raw_packet))
-        if len(raw_packet) < 60:
+#        self.logger.warning('len %i', len(packet))
+        if len(packet) < 60:
             return False
         b_num_serial = self.client.num_serial.encode()
         #self.logger.warning('b_num_serial %s', b_num_serial)
         for i in range(0, 12):
-            if raw_packet[i + 1] != b_num_serial[i]:
+            if packet[i + 1] != b_num_serial[i]:
                 return False
         return True
 
-    def _handle_raw_packet(self, raw_packet):
+    def _handle_packet(self, packet):
         """Parse incoming packet."""
-        #self.logger.warning('handle data: %s', raw_packet)
-        if raw_packet[0:1] == b'&':
-            self._reset_timeout()
-            states = {}
-            changes = []
-            for index in range(0, 3):
-#                self.logger.warning('estado index %i: %s', index, raw_packet[23+index:24+index])
-                if raw_packet[23+index:24+index] == b'1':
-                    self.logger.warning('estado index %i: %s', index, raw_packet[23+index:24+index])
-                    states[format(index, 'x')] = True
-                    if (self.client.states.get(format(index, 'x'), None)
-                            is not True):
-                        changes.append(format(index, 'x'))
-                        self.client.states[format(index, 'x')] = True
-                elif raw_packet[23+index:24+index] == b'0':
-                    self.logger.warning('estado index %i: %s', index, raw_packet[23+index:24+index])
-                    states[format(index, 'x')] = False
-                    if (self.client.states.get(format(index, 'x'), None)
-                            is not False):
-                        changes.append(format(index, 'x'))
-                        self.client.states[format(index, 'x')] = False
-            for index in changes:
-                for status_cb in self.client.status_callbacks.get(index, []):
-                    status_cb(states[index])
-            self.logger.debug(states)
-            if self.client.in_transaction:
-                self.client.in_transaction = False
-#                self.client.active_packet = False
-                self.client.active_packet = None
-                self.client.active_transaction.set_result(states)
-                while self.client.status_waiters:
-                    waiter = self.client.status_waiters.popleft()
-                    waiter.set_result(states)
-                if self.client.waiters:
-                    self.send_packet()
-                else:
-                    self._cmd_timeout.cancel()
-            elif self._cmd_timeout:
-                self._cmd_timeout.cancel()
+        #self.logger.warning('handle data: %s', packet)
+        if packet[0:1] == b'&':
+            if self.client.model == "0100":
+                _handle_0100_packet(self, packet)
+            elif self.client.model == "0102":
+                _handle_0102_packet(self, packet)
         else:
-            self.logger.warning('received unknown packet: %s', raw_packet)
+            self.logger.warning('received unknown packet: %s', packet)
+
+    def _handle_0100_packet(self, packet):
+        """Parse incoming packet."""
+        self._reset_timeout()
+        states = {}
+        changes = []
+        for index in range(0, 3):
+
+            on = packet[23+index:24+index] == b'1'
+            self.logger.warning('estado index %i: %s', index, on)
+            states[format(index, 'x')]["on"] = on
+            if (self.client.states.get(format(index, 'x'), None).get("on") != on:
+                changes.append(format(index, 'x'))
+                self.client.states[format(index, 'x')]["on"] = on
+            brightness = packet[26+3*index:29+3*index]
+            self.logger.warning('brightness index %i: %s', index, brightness)
+            states[format(index, 'x')]["brightness"] = brightness
+            if (self.client.states.get(format(index, 'x'), None).get("brightness") != brightness:
+                changes.append(format(index, 'x'))
+                self.client.states[format(index, 'x')]["brightness"] = brightness
+
+        for index in changes:
+            for status_cb in self.client.status_callbacks.get(index, []):
+                status_cb(states[index])
+        self.logger.debug(states)
+        if self.client.in_transaction:
+            self.client.in_transaction = False
+            self.client.active_packet = None
+            self.client.active_transaction.set_result(states)
+            while self.client.status_waiters:
+                waiter = self.client.status_waiters.popleft()
+                waiter.set_result(states)
+            if self.client.waiters:
+                self.send_packet()
+            else:
+                self._cmd_timeout.cancel()
+        elif self._cmd_timeout:
+            self._cmd_timeout.cancel()
+
+    def _handle_0102_packet(self, packet):
+        """Parse incoming packet."""
+        self._reset_timeout()
+        states = {}
+        changes = []
+        for index in range(0, 3):
+#                self.logger.warning('estado index %i: %s', index, packet[23+index:24+index])
+            if packet[23+index:24+index] == b'1':
+                self.logger.warning('estado index %i: %s', index, packet[23+index:24+index])
+                #states[format(index, 'x')] = True
+                states[format(index, 'x')] = { "on": True }
+                #if (self.client.states.get(format(index, 'x'), None)
+                if (self.client.states.get(format(index, 'x'), None).get("on")
+                        is not True):
+                    changes.append(format(index, 'x'))
+                    self.client.states[format(index, 'x')] = { "on": True }
+            elif packet[23+index:24+index] == b'0':
+                self.logger.warning('estado index %i: %s', index, packet[23+index:24+index])
+                #states[format(index, 'x')] = False
+                states[format(index, 'x')] = { "on": False }
+                if (self.client.states.get(format(index, 'x'), None).get("on")
+                        is not False):
+                    changes.append(format(index, 'x'))
+                    self.client.states[format(index, 'x')] = { "on": False }
+        for index in changes:
+            for status_cb in self.client.status_callbacks.get(index, []):
+                status_cb(states[index])
+        self.logger.debug(states)
+        if self.client.in_transaction:
+            self.client.in_transaction = False
+            self.client.active_packet = None
+            self.client.active_transaction.set_result(states)
+            while self.client.status_waiters:
+                waiter = self.client.status_waiters.popleft()
+                waiter.set_result(states)
+            if self.client.waiters:
+                self.send_packet()
+            else:
+                self._cmd_timeout.cancel()
+        elif self._cmd_timeout:
+            self._cmd_timeout.cancel()
 
     def send_packet(self):
         """Write next packet in send queue."""
@@ -262,7 +309,7 @@ class WiLightClient:
         return fut
 
     async def turn_on_default(self, index=None):
-        """Turn on relay."""
+        """Turn on item."""
         if index is not None:
             #self.logger.warning('index turn_on ok: %s', index)
             comandos_on = ["001000", "003000", "005000"]
@@ -274,7 +321,7 @@ class WiLightClient:
         return states
 
     async def turn_off_default(self, index=None):
-        """Turn off relay."""
+        """Turn off item."""
         if index is not None:
             #self.logger.warning('index turn_off ok: %s', index)
             comandos_off = ["002000", "004000", "006000"]
@@ -285,8 +332,8 @@ class WiLightClient:
         states = await self._send(packet)
         return states
 
-    async def status_light_on_off(self, index=None):
-        """Get current relay status."""
+    async def status(self, index=None):
+        """Get current item status."""
         if index is not None:
             if self.waiters or self.in_transaction:
                 fut = self.loop.create_future()
