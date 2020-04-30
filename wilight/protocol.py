@@ -32,7 +32,7 @@ class WiLightProtocol(asyncio.Protocol):
         """Send a keep alive packet."""
         if not self.client.in_transaction:
             packet = self.format_packet("000000", self.client.num_serial)
-            self.logger.warning('sending packet keep alive: %s', packet)
+            #self.logger.warning('sending packet keep alive: %s', packet)
             self.logger.debug('sending keep alive packet')
             self.transport.write(packet)
 
@@ -94,25 +94,25 @@ class WiLightProtocol(asyncio.Protocol):
             self._reset_timeout()
             states = {}
             changes = []
-            for switch in range(0, 3):
-#                self.logger.warning('estado switch %i: %s', switch, raw_packet[23+switch:24+switch])
-                if raw_packet[23+switch:24+switch] == b'1':
-                    self.logger.warning('estado switch %i: %s', switch, raw_packet[23+switch:24+switch])
-                    states[format(switch, 'x')] = True
-                    if (self.client.states.get(format(switch, 'x'), None)
+            for index in range(0, 3):
+#                self.logger.warning('estado index %i: %s', index, raw_packet[23+index:24+index])
+                if raw_packet[23+index:24+index] == b'1':
+                    self.logger.warning('estado index %i: %s', index, raw_packet[23+index:24+index])
+                    states[format(index, 'x')] = True
+                    if (self.client.states.get(format(index, 'x'), None)
                             is not True):
-                        changes.append(format(switch, 'x'))
-                        self.client.states[format(switch, 'x')] = True
-                elif raw_packet[23+switch:24+switch] == b'0':
-                    self.logger.warning('estado switch %i: %s', switch, raw_packet[23+switch:24+switch])
-                    states[format(switch, 'x')] = False
-                    if (self.client.states.get(format(switch, 'x'), None)
+                        changes.append(format(index, 'x'))
+                        self.client.states[format(index, 'x')] = True
+                elif raw_packet[23+index:24+index] == b'0':
+                    self.logger.warning('estado index %i: %s', index, raw_packet[23+index:24+index])
+                    states[format(index, 'x')] = False
+                    if (self.client.states.get(format(index, 'x'), None)
                             is not False):
-                        changes.append(format(switch, 'x'))
-                        self.client.states[format(switch, 'x')] = False
-            for switch in changes:
-                for status_cb in self.client.status_callbacks.get(switch, []):
-                    status_cb(states[switch])
+                        changes.append(format(index, 'x'))
+                        self.client.states[format(index, 'x')] = False
+            for index in changes:
+                for status_cb in self.client.status_callbacks.get(index, []):
+                    status_cb(states[index])
             self.logger.debug(states)
             if self.client.in_transaction:
                 self.client.in_transaction = False
@@ -134,7 +134,7 @@ class WiLightProtocol(asyncio.Protocol):
     def send_packet(self):
         """Write next packet in send queue."""
         waiter, packet = self.client.waiters.popleft()
-        self.logger.warning('sending packet send_packet: %s', packet)
+        #self.logger.warning('sending packet send_packet: %s', packet)
         self.client.active_transaction = waiter
         self.client.in_transaction = True
         self.client.active_packet = packet
@@ -243,65 +243,61 @@ class WiLightClient:
                 self.protocol.transport.write(self.active_packet)
             else:
                 packet = self.protocol.format_packet("000000", self.num_serial)
-                self.logger.warning('sending packet disconnected: %s', packet)
+                #self.logger.warning('sending packet disconnected: %s', packet)
                 self.protocol.transport.write(packet)
 
-    def register_status_callback(self, callback, switch):
+    def register_status_callback(self, callback, index):
         """Register a callback which will fire when state changes."""
-        if self.status_callbacks.get(switch, None) is None:
-            self.status_callbacks[switch] = []
-        self.status_callbacks[switch].append(callback)
+        if self.status_callbacks.get(index, None) is None:
+            self.status_callbacks[index] = []
+        self.status_callbacks[index].append(callback)
 
     def _send(self, packet):
         """Add packet to send queue."""
-        self.logger.warning('sending packet _send: %s', packet)
+        #self.logger.warning('sending packet _send: %s', packet)
         fut = self.loop.create_future()
         self.waiters.append((fut, packet))
         if self.waiters and self.in_transaction is False:
             self.protocol.send_packet()
         return fut
 
-    async def turn_on(self, switch=None):
+    async def turn_on_default(self, index=None):
         """Turn on relay."""
-        if switch is not None:
-            #switch = codecs.decode(switch.rjust(2, '0'), 'hex')
-            self.logger.warning('switch turn_on ok: %s', switch)
+        if index is not None:
+            #self.logger.warning('index turn_on ok: %s', index)
             comandos_on = ["001000", "003000", "005000"]
-            #packet = self.protocol.format_packet("000100", self.num_serial)
-            packet = self.protocol.format_packet(comandos_on[int(switch)], self.num_serial)
+            packet = self.protocol.format_packet(comandos_on[int(index)], self.num_serial)
         else:
-            self.logger.warning('switch turn_on nok')
+            #self.logger.warning('index turn_on nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
 
-    async def turn_off(self, switch=None):
+    async def turn_off_default(self, index=None):
         """Turn off relay."""
-        if switch is not None:
-            #switch = codecs.decode(switch.rjust(2, '0'), 'hex')
-            self.logger.warning('switch turn_off ok: %s', switch)
+        if index is not None:
+            #self.logger.warning('index turn_off ok: %s', index)
             comandos_off = ["002000", "004000", "006000"]
-            #packet = self.protocol.format_packet("002000", self.num_serial)
-            packet = self.protocol.format_packet(comandos_off[int(switch)], self.num_serial)
+            packet = self.protocol.format_packet(comandos_off[int(index)], self.num_serial)
         else:
-            self.logger.warning('switch turn_off nok')
+            #self.logger.warning('index turn_off nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
 
-    async def status(self, switch=None):
+    async def status_light_on_off(self, index=None):
         """Get current relay status."""
-        if switch is not None:
+        if index is not None:
             if self.waiters or self.in_transaction:
                 fut = self.loop.create_future()
                 self.status_waiters.append(fut)
                 states = await fut
-                state = states[switch]
+                state = states[index]
             else:
                 packet = self.protocol.format_packet("000000", self.num_serial)
                 self.logger.warning('sending packet status 1: %s', packet)
                 states = await self._send(packet)
-                state = states[switch]
+                state = states[index]
         else:
             if self.waiters or self.in_transaction:
                 fut = self.loop.create_future()
