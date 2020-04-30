@@ -6,7 +6,7 @@ import setuptools
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = '0.0.14'
+version = '0.0.15'
 
 setuptools.setup(
     name="wilight",
