@@ -105,16 +105,19 @@ class WiLightProtocol(asyncio.Protocol):
         changes = []
         for index in range(0, 3):
 
+            state_client = self.client.states.get(format(index, 'x'))
+            if state_client is None:
+                state_client = {}
             on = packet[23+index:24+index] == b'1'
             self.logger.warning('estado index %i: %s', index, on)
             states[format(index, 'x')]["on"] = on
-            if self.client.states.get(format(index, 'x'), None).get("on") != on:
+            if state_client["on"] != on:
                 changes.append(format(index, 'x'))
                 self.client.states[format(index, 'x')]["on"] = on
             brightness = packet[26+3*index:29+3*index]
             self.logger.warning('brightness index %i: %s', index, brightness)
             states[format(index, 'x')]["brightness"] = brightness
-            if self.client.states.get(format(index, 'x'), None).get("brightness") != brightness:
+            if state_client["brightness"] != brightness:
                 changes.append(format(index, 'x'))
                 self.client.states[format(index, 'x')]["brightness"] = brightness
 
