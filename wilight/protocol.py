@@ -108,13 +108,13 @@ class WiLightProtocol(asyncio.Protocol):
             on = packet[23+index:24+index] == b'1'
             self.logger.warning('estado index %i: %s', index, on)
             states[format(index, 'x')]["on"] = on
-            if (self.client.states.get(format(index, 'x'), None).get("on") != on:
+            if self.client.states.get(format(index, 'x'), None).get("on") != on:
                 changes.append(format(index, 'x'))
                 self.client.states[format(index, 'x')]["on"] = on
             brightness = packet[26+3*index:29+3*index]
             self.logger.warning('brightness index %i: %s', index, brightness)
             states[format(index, 'x')]["brightness"] = brightness
-            if (self.client.states.get(format(index, 'x'), None).get("brightness") != brightness:
+            if self.client.states.get(format(index, 'x'), None).get("brightness") != brightness:
                 changes.append(format(index, 'x'))
                 self.client.states[format(index, 'x')]["brightness"] = brightness
 
@@ -148,7 +148,7 @@ class WiLightProtocol(asyncio.Protocol):
                 #states[format(index, 'x')] = True
                 states[format(index, 'x')] = { "on": True }
                 #if (self.client.states.get(format(index, 'x'), None)
-                if (self.client.states.get(format(index, 'x'), None).get("on")
+                if self.client.states.get(format(index, 'x'), None).get("on")
                         is not True):
                     changes.append(format(index, 'x'))
                     self.client.states[format(index, 'x')] = { "on": True }
@@ -156,7 +156,7 @@ class WiLightProtocol(asyncio.Protocol):
                 self.logger.warning('estado index %i: %s', index, packet[23+index:24+index])
                 #states[format(index, 'x')] = False
                 states[format(index, 'x')] = { "on": False }
-                if (self.client.states.get(format(index, 'x'), None).get("on")
+                if self.client.states.get(format(index, 'x'), None).get("on")
                         is not False):
                     changes.append(format(index, 'x'))
                     self.client.states[format(index, 'x')] = { "on": False }
@@ -308,7 +308,7 @@ class WiLightClient:
             self.protocol.send_packet()
         return fut
 
-    async def turn_on_default(self, index=None):
+    async def turn_on(self, index=None):
         """Turn on item."""
         if index is not None:
             #self.logger.warning('index turn_on ok: %s', index)
@@ -320,7 +320,7 @@ class WiLightClient:
         states = await self._send(packet)
         return states
 
-    async def turn_off_default(self, index=None):
+    async def turn_off(self, index=None):
         """Turn off item."""
         if index is not None:
             #self.logger.warning('index turn_off ok: %s', index)
