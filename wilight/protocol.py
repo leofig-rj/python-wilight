@@ -150,15 +150,18 @@ class WiLightProtocol(asyncio.Protocol):
         for index in range(0, 3):
 
             append_changes = False
-            state_client = self.client.states.get(format(index, 'x'))
-            if state_client is None:
-                state_client = {}
+            state_client = self.client.states.get(format(index, 'x'), None)
+            #if state_client is None:
+                #state_client = {}
             on = packet[23+index:24+index] == b'1'
             self.logger.warning('estado index %i: %s', index, on)
-            states[format(index, 'x')]["on"] = on
-            if state_client["on"] != on:
+            #states[format(index, 'x')]["on"] = on
+            states[format(index, 'x')] = on
+            #if state_client["on"] != on:
+            if state_client != on:
                 append_changes = True
-                self.client.states[format(index, 'x')]["on"] = on
+                #self.client.states[format(index, 'x')]["on"] = on
+                self.client.states[format(index, 'x')] = on
             if append_changes:
                 changes.append(format(index, 'x'))
 
@@ -354,7 +357,7 @@ class WiLightClient:
                 state = await fut
             else:
                 packet = self.protocol.format_packet("000000", self.num_serial)
-                self.logger.warning('sending packet status 1: %s', packet)
+                self.logger.warning('sending packet status 2: %s', packet)
                 state = await self._send(packet)
         return state
 
