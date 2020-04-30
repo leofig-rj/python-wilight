@@ -105,6 +105,7 @@ class WiLightProtocol(asyncio.Protocol):
         changes = []
         for index in range(0, 3):
 
+            append_changes = False
             state_client = self.client.states.get(format(index, 'x'))
             if state_client is None:
                 state_client = {}
@@ -112,14 +113,16 @@ class WiLightProtocol(asyncio.Protocol):
             self.logger.warning('estado index %i: %s', index, on)
             states[format(index, 'x')]["on"] = on
             if state_client["on"] != on:
-                changes.append(format(index, 'x'))
+                append_changes = True
                 self.client.states[format(index, 'x')]["on"] = on
             brightness = packet[26+3*index:29+3*index]
             self.logger.warning('brightness index %i: %s', index, brightness)
             states[format(index, 'x')]["brightness"] = brightness
             if state_client["brightness"] != brightness:
-                changes.append(format(index, 'x'))
+                append_changes = True
                 self.client.states[format(index, 'x')]["brightness"] = brightness
+            if append_changes:
+                changes.append(format(index, 'x'))
 
         for index in changes:
             for status_cb in self.client.status_callbacks.get(index, []):
@@ -145,24 +148,20 @@ class WiLightProtocol(asyncio.Protocol):
         states = {}
         changes = []
         for index in range(0, 3):
-#                self.logger.warning('estado index %i: %s', index, packet[23+index:24+index])
-            if packet[23+index:24+index] == b'1':
-                self.logger.warning('estado index %i: %s', index, packet[23+index:24+index])
-                #states[format(index, 'x')] = True
-                states[format(index, 'x')] = { "on": True }
-                #if (self.client.states.get(format(index, 'x'), None)
-                if self.client.states.get(format(index, 'x'), None).get("on")
-                        is not True):
-                    changes.append(format(index, 'x'))
-                    self.client.states[format(index, 'x')] = { "on": True }
-            elif packet[23+index:24+index] == b'0':
-                self.logger.warning('estado index %i: %s', index, packet[23+index:24+index])
-                #states[format(index, 'x')] = False
-                states[format(index, 'x')] = { "on": False }
-                if self.client.states.get(format(index, 'x'), None).get("on")
-                        is not False):
-                    changes.append(format(index, 'x'))
-                    self.client.states[format(index, 'x')] = { "on": False }
+
+            append_changes = False
+            state_client = self.client.states.get(format(index, 'x'))
+            if state_client is None:
+                state_client = {}
+            on = packet[23+index:24+index] == b'1'
+            self.logger.warning('estado index %i: %s', index, on)
+            states[format(index, 'x')]["on"] = on
+            if state_client["on"] != on:
+                append_changes = True
+                self.client.states[format(index, 'x')]["on"] = on
+            if append_changes:
+                changes.append(format(index, 'x'))
+
         for index in changes:
             for status_cb in self.client.status_callbacks.get(index, []):
                 status_cb(states[index])
