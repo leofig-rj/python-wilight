@@ -97,7 +97,7 @@ class WiLightProtocol(asyncio.Protocol):
             for index in range(0, 3):
 #                self.logger.warning('estado index %i: %s', index, raw_packet[23+index:24+index])
                 client_state = (self.client.states.get(format(index, 'x'), None)
-                if type(client_state) is not dict:
+                if (type(client_state) is None):
                     client_state = {}
                 if raw_packet[23+index:24+index] == b'1':
                     self.logger.warning('estado index %i: %s', index, raw_packet[23+index:24+index])
