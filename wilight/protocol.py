@@ -77,7 +77,7 @@ class WiLightProtocol(asyncio.Protocol):
         """Validate incoming packet."""
         if packet[0:1] != b'&':
             return False
-#        self.logger.warning('len %i', len(packet))
+        #self.logger.warning('len %i', len(packet))
         if len(packet) < 60:
             return False
         b_num_serial = self.client.num_serial.encode()
@@ -90,11 +90,58 @@ class WiLightProtocol(asyncio.Protocol):
     def _handle_packet(self, packet):
         """Parse incoming packet."""
         #self.logger.warning('handle data: %s', packet)
-        if packet[0:1] == b'&':
-            if self.client.model == "0102":
-                self._handle_0102_packet(packet)
-        else:
-            self.logger.warning('received unknown packet: %s', packet)
+        if self.client.model == "0100":
+            self._handle_0100_packet(packet)
+        elif self.client.model == "0102":
+            self._handle_0102_packet(packet)
+
+    def _handle_0100_packet(self, packet):
+        """Parse incoming packet."""
+        self._reset_timeout()
+        states = {}
+        changes = []
+        for index in range(0, 3):
+
+            client_state = self.client.states.get(format(index, 'x'), None)
+            if client_state is None:
+                client_state = {}
+            on = (packet[23+index:24+index] == b'1')
+            self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
+            brightness = int(packet[26+3*index:29+3*index])
+            self.logger.warning('WiLight %s index %i, brightness: %i', self.client.num_serial, index, brightness)
+            states[format(index, 'x')] = {"on": on, "brightness": brightness}
+            mudou = False
+            if ("on" in client_state):
+                if (client_state["on"] is not on):
+                    mudou = True
+            else:
+                mudou = True
+            if ("brightness" in client_state):
+                if (client_state["brightness"] != brightness):
+                    mudou = True
+            else:
+                mudou = True
+            if mudou:
+                changes.append(format(index, 'x'))
+                self.client.states[format(index, 'x')] = {"on": on, "brightness": brightness}
+
+        for index in changes:
+            for status_cb in self.client.status_callbacks.get(index, []):
+                status_cb(states[index])
+        self.logger.debug(states)
+        if self.client.in_transaction:
+            self.client.in_transaction = False
+            self.client.active_packet = None
+            self.client.active_transaction.set_result(states)
+            while self.client.status_waiters:
+                waiter = self.client.status_waiters.popleft()
+                waiter.set_result(states)
+            if self.client.waiters:
+                self.send_packet()
+            else:
+                self._cmd_timeout.cancel()
+        elif self._cmd_timeout:
+            self._cmd_timeout.cancel()
 
     def _handle_0102_packet(self, packet):
         """Parse incoming packet."""
@@ -107,7 +154,7 @@ class WiLightProtocol(asyncio.Protocol):
             if client_state is None:
                 client_state = {}
             on = (packet[23+index:24+index] == b'1')
-            self.logger.warning('estado index %i: %s', index, on)
+            self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
             states[format(index, 'x')] = {"on": on}
             mudou = False
             if ("on" in client_state):
