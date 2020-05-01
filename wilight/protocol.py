@@ -92,7 +92,7 @@ class WiLightProtocol(asyncio.Protocol):
         #self.logger.warning('handle data: %s', packet)
         if packet[0:1] == b'&':
             if self.client.model == "0102":
-                self._handle_0102_packet(self, packet)
+                self._handle_0102_packet(packet)
         else:
             self.logger.warning('received unknown packet: %s', packet)
 
