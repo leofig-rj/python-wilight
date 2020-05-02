@@ -94,6 +94,8 @@ class WiLightProtocol(asyncio.Protocol):
             self._handle_0100_packet(packet)
         elif self.client.model == "0102":
             self._handle_0102_packet(packet)
+        elif self.client.model == "0105":
+            self._handle_0102_packet(packet)
 
     def _handle_0100_packet(self, packet):
         """Parse incoming packet."""
@@ -149,6 +151,45 @@ class WiLightProtocol(asyncio.Protocol):
             if changed:
                 changes.append(format(index, 'x'))
                 self.client.states[format(index, 'x')] = {"on": on}
+
+        self._handle_packet_end(states, changes)
+
+    def _handle_0105_packet(self, packet):
+        """Parse incoming packet."""
+        self._reset_timeout()
+        states = {}
+        changes = []
+        for index in range(0, 3):
+
+            client_state = self.client.states.get(format(index, 'x'), None)
+            if client_state is None:
+                client_state = {}
+            on = (packet[23+index:24+index] == b'1')
+            self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
+            timer_setting = int(int(packet[25+5*index:30+5*index])/20)
+            self.logger.warning('WiLight %s index %i, timer_setting: %i', self.client.num_serial, index, timer_setting)
+            timer_current = int(int(packet[35+5*index:40+5*index])/20)
+            self.logger.warning('WiLight %s index %i, timer_current: %i', self.client.num_serial, index, timer_current)
+            states[format(index, 'x')] = {"on": on, "timer_setting": timer_setting, "timer_current": timer_current}
+            changed = False
+            if ("on" in client_state):
+                if (client_state["on"] is not on):
+                    changed = True
+            else:
+                changed = True
+            if ("timer_setting" in client_state):
+                if (client_state["timer_setting"] != timer_setting):
+                    changed = True
+            else:
+                changed = True
+            if ("timer_current" in client_state):
+                if (client_state["timer_current"] != timer_current):
+                    changed = True
+            else:
+                changed = True
+            if changed:
+                changes.append(format(index, 'x'))
+                self.client.states[format(index, 'x')] = {"on": on, "timer_setting": timer_setting, "timer_current": timer_current}
 
         self._handle_packet_end(states, changes)
 
