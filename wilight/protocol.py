@@ -95,7 +95,7 @@ class WiLightProtocol(asyncio.Protocol):
         elif self.client.model == "0102":
             self._handle_0102_packet(packet)
         elif self.client.model == "0105":
-            self._handle_0102_packet(packet)
+            self._handle_0105_packet(packet)
 
     def _handle_0100_packet(self, packet):
         """Parse incoming packet."""
