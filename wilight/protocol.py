@@ -159,7 +159,7 @@ class WiLightProtocol(asyncio.Protocol):
         self._reset_timeout()
         states = {}
         changes = []
-        for index in range(0, 3):
+        for index in range(0, 2):
 
             client_state = self.client.states.get(format(index, 'x'), None)
             if client_state is None:
