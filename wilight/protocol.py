@@ -110,38 +110,22 @@ class WiLightProtocol(asyncio.Protocol):
             brightness = int(packet[26+3*index:29+3*index])
             self.logger.warning('WiLight %s index %i, brightness: %i', self.client.num_serial, index, brightness)
             states[format(index, 'x')] = {"on": on, "brightness": brightness}
-            mudou = False
+            changed = False
             if ("on" in client_state):
                 if (client_state["on"] is not on):
-                    mudou = True
+                    changed = True
             else:
-                mudou = True
+                changed = True
             if ("brightness" in client_state):
                 if (client_state["brightness"] != brightness):
-                    mudou = True
+                    changed = True
             else:
-                mudou = True
-            if mudou:
+                changed = True
+            if changed:
                 changes.append(format(index, 'x'))
                 self.client.states[format(index, 'x')] = {"on": on, "brightness": brightness}
 
-        for index in changes:
-            for status_cb in self.client.status_callbacks.get(index, []):
-                status_cb(states[index])
-        self.logger.debug(states)
-        if self.client.in_transaction:
-            self.client.in_transaction = False
-            self.client.active_packet = None
-            self.client.active_transaction.set_result(states)
-            while self.client.status_waiters:
-                waiter = self.client.status_waiters.popleft()
-                waiter.set_result(states)
-            if self.client.waiters:
-                self.send_packet()
-            else:
-                self._cmd_timeout.cancel()
-        elif self._cmd_timeout:
-            self._cmd_timeout.cancel()
+        self._handle_packet_end(self, states, changes)
 
     def _handle_0102_packet(self, packet):
         """Parse incoming packet."""
@@ -156,16 +140,20 @@ class WiLightProtocol(asyncio.Protocol):
             on = (packet[23+index:24+index] == b'1')
             self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
             states[format(index, 'x')] = {"on": on}
-            mudou = False
+            changed = False
             if ("on" in client_state):
                 if (client_state["on"] is not on):
-                    mudou = True
+                    changed = True
             else:
-                mudou = True
-            if mudou:
+                changed = True
+            if changed:
                 changes.append(format(index, 'x'))
                 self.client.states[format(index, 'x')] = {"on": on}
 
+        self._handle_packet_end(self, states, changes)
+
+    def _handle_packet_end(self, states, changes):
+        """Finalizes packet handling."""
         for index in changes:
             for status_cb in self.client.status_callbacks.get(index, []):
                 status_cb(states[index])
@@ -315,11 +303,11 @@ class WiLightClient:
         return fut
 
     async def turn_on(self, index=None):
-        """Turn on relay."""
+        """Turn on device."""
         if index is not None:
             #self.logger.warning('index turn_on ok: %s', index)
-            comandos_on = ["001000", "003000", "005000"]
-            packet = self.protocol.format_packet(comandos_on[int(index)], self.num_serial)
+            commands_on = ["001000", "003000", "005000"]
+            packet = self.protocol.format_packet(commands_on[int(index)], self.num_serial)
         else:
             #self.logger.warning('index turn_on nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
@@ -327,19 +315,32 @@ class WiLightClient:
         return states
 
     async def turn_off(self, index=None):
-        """Turn off relay."""
+        """Turn off device."""
         if index is not None:
             #self.logger.warning('index turn_off ok: %s', index)
-            comandos_off = ["002000", "004000", "006000"]
-            packet = self.protocol.format_packet(comandos_off[int(index)], self.num_serial)
+            commands_off = ["002000", "004000", "006000"]
+            packet = self.protocol.format_packet(commands_off[int(index)], self.num_serial)
         else:
             #self.logger.warning('index turn_off nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
 
+    async def set_brightness(self, index=None, brightness=None):
+        """Set device's brightness."""
+        if (index is not None and brightness is not None):
+            commands_brigthness = ["007003", "008003", "009003"]
+            command = commands_brigthness[int(index)] + '{:0>3}'.format(brightness)
+            self.logger.warning('brightness command: %s', command)
+            packet = self.protocol.format_packet(command, self.num_serial)
+        else:
+            self.logger.warning('brightness command nok')
+            packet = self.protocol.format_packet("000000", self.num_serial)
+        states = await self._send(packet)
+        return states
+
     async def status(self, index=None):
-        """Get current relay status."""
+        """Get current device status."""
         if index is not None:
             if self.waiters or self.in_transaction:
                 fut = self.loop.create_future()
