@@ -166,9 +166,9 @@ class WiLightProtocol(asyncio.Protocol):
                 client_state = {}
             on = (packet[23+index:24+index] == b'1')
             self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
-            timer_setting = int(int(packet[25+5*index:30+5*index])/20)
+            timer_setting = int(packet[25+5*index:30+5*index])
             self.logger.warning('WiLight %s index %i, timer_setting: %i', self.client.num_serial, index, timer_setting)
-            timer_current = int(int(packet[35+5*index:40+5*index])/20)
+            timer_current = int(packet[35+5*index:40+5*index])
             self.logger.warning('WiLight %s index %i, timer_current: %i', self.client.num_serial, index, timer_current)
             states[format(index, 'x')] = {"on": on, "timer_setting": timer_setting, "timer_current": timer_current}
             changed = False
