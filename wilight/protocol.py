@@ -125,7 +125,7 @@ class WiLightProtocol(asyncio.Protocol):
                 changes.append(format(index, 'x'))
                 self.client.states[format(index, 'x')] = {"on": on, "brightness": brightness}
 
-        self._handle_packet_end(self, states, changes)
+        self._handle_packet_end(states, changes)
 
     def _handle_0102_packet(self, packet):
         """Parse incoming packet."""
@@ -150,7 +150,7 @@ class WiLightProtocol(asyncio.Protocol):
                 changes.append(format(index, 'x'))
                 self.client.states[format(index, 'x')] = {"on": on}
 
-        self._handle_packet_end(self, states, changes)
+        self._handle_packet_end(states, changes)
 
     def _handle_packet_end(self, states, changes):
         """Finalizes packet handling."""
