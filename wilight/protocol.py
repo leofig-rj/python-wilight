@@ -76,6 +76,9 @@ class WiLightProtocol(asyncio.Protocol):
         elif self.client.model == "0102":
             if len(packet) < 84:
                 return False
+        elif self.client.model == "0103":
+            if len(packet) < 40:
+                return False
         elif self.client.model == "0104":
             if len(packet) < 51:
                 return False
@@ -96,6 +99,8 @@ class WiLightProtocol(asyncio.Protocol):
             self._handle_0100_packet(packet)
         elif self.client.model == "0102":
             self._handle_0102_packet(packet)
+        elif self.client.model == "0103":
+            self._handle_0103_packet(packet)
         elif self.client.model == "0104":
             self._handle_0104_packet(packet)
         elif self.client.model == "0105":
@@ -155,6 +160,49 @@ class WiLightProtocol(asyncio.Protocol):
             if changed:
                 changes.append(format(index, 'x'))
                 self.client.states[format(index, 'x')] = {"on": on}
+
+        self._handle_packet_end(states, changes)
+
+    def _handle_0103_packet(self, packet):
+        """Parse incoming packet."""
+        self._reset_timeout()
+        states = {}
+        changes = []
+        for index in range(0, 1):
+
+            client_state = self.client.states.get(format(index, 'x'), None)
+            if client_state is None:
+                client_state = {}
+            motor_state = "stopped"
+            if (packet[23:24] == b'1'):
+                motor_state = "opening"
+            if (packet[23:24] == b'0'):
+                motor_state = "closing"
+            self.logger.warning('WiLight %s index %i, motor_state: %s', self.client.num_serial, index, motor_state)
+            cover_target = int(packet[24:27])
+            self.logger.warning('WiLight %s index %i, cover_target: %i', self.client.num_serial, index, cover_target)
+            cover_current = int(packet[27:30])
+            self.logger.warning('WiLight %s index %i, cover_current: %i', self.client.num_serial, index, cover_current)
+            states[format(index, 'x')] = {"motor_state": motor_state, "cover_target": cover_target, "cover_current": cover_current}
+            changed = False
+            if ("motor_state" in client_state):
+                if (client_state["motor_state"] != motor_state):
+                    changed = True
+            else:
+                changed = True
+            if ("cover_target" in client_state):
+                if (client_state["cover_target"] != cover_target):
+                    changed = True
+            else:
+                changed = True
+            if ("cover_current" in client_state):
+                if (client_state["cover_current"] != cover_current):
+                    changed = True
+            else:
+                changed = True
+            if changed:
+                changes.append(format(index, 'x'))
+                self.client.states[format(index, 'x')] = {"motor_state": motor_state, "cover_target": cover_target, "cover_current": cover_current}
 
         self._handle_packet_end(states, changes)
 
@@ -228,19 +276,19 @@ class WiLightProtocol(asyncio.Protocol):
                 client_state = {}
             on = (packet[23+index:24+index] == b'1')
             self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
-            timer_setting = int(packet[25+5*index:30+5*index])
-            self.logger.warning('WiLight %s index %i, timer_setting: %i', self.client.num_serial, index, timer_setting)
+            timer_target = int(packet[25+5*index:30+5*index])
+            self.logger.warning('WiLight %s index %i, timer_target: %i', self.client.num_serial, index, timer_target)
             timer_current = int(packet[35+5*index:40+5*index])
             self.logger.warning('WiLight %s index %i, timer_current: %i', self.client.num_serial, index, timer_current)
-            states[format(index, 'x')] = {"on": on, "timer_setting": timer_setting, "timer_current": timer_current}
+            states[format(index, 'x')] = {"on": on, "timer_target": timer_target, "timer_current": timer_current}
             changed = False
             if ("on" in client_state):
                 if (client_state["on"] is not on):
                     changed = True
             else:
                 changed = True
-            if ("timer_setting" in client_state):
-                if (client_state["timer_setting"] != timer_setting):
+            if ("timer_target" in client_state):
+                if (client_state["timer_target"] != timer_target):
                     changed = True
             else:
                 changed = True
@@ -251,7 +299,7 @@ class WiLightProtocol(asyncio.Protocol):
                 changed = True
             if changed:
                 changes.append(format(index, 'x'))
-                self.client.states[format(index, 'x')] = {"on": on, "timer_setting": timer_setting, "timer_current": timer_current}
+                self.client.states[format(index, 'x')] = {"on": on, "timer_target": timer_target, "timer_current": timer_current}
 
         self._handle_packet_end(states, changes)
 
@@ -306,10 +354,6 @@ class WiLightProtocol(asyncio.Protocol):
 class WiLightClient:
     """WiLight client wrapper class."""
 
-    #def __init__(self, device_id, host, port, model, config_ex,
-    #             disconnect_callback=None, reconnect_callback=None,
-    #             loop=None, logger=None, timeout=10, reconnect_interval=10,
-    #             keep_alive_interval=3):
     def __init__(self, device_id=None, host=None,
                  port=None, model=None, config_ex=None,
                  disconnect_callback=None, reconnect_callback=None,
@@ -472,13 +516,43 @@ class WiLightClient:
             if speed == "low":
                 command = "006000"
             elif speed == "medium":
-                command = "007003000"
+                command = "007000"
             elif speed == "high":
                 command = "008000"
             self.logger.warning('speed command: %s', command)
             packet = self.protocol.format_packet(command, self.num_serial)
         else:
             self.logger.warning('direction command nok')
+            packet = self.protocol.format_packet("000000", self.num_serial)
+        states = await self._send(packet)
+        return states
+
+    async def cover_command(self, index=None, cv_command=None):
+        """Send cover command."""
+        if (index is not None and cv_command is not None):
+            command = "000000"
+            if cv_command == "open":
+                command = "001000"
+            elif cv_command == "close":
+                command = "002000"
+            elif cv_command == "stop":
+                command = "003000"
+            self.logger.warning('cover command: %s', command)
+            packet = self.protocol.format_packet(command, self.num_serial)
+        else:
+            self.logger.warning('cover command nok')
+            packet = self.protocol.format_packet("000000", self.num_serial)
+        states = await self._send(packet)
+        return states
+
+    async def set_cover_position(self, index=None, position=None):
+        """Set cover position."""
+        if (index is not None and position is not None):
+            command = "007003" + '{:0>3}'.format(position)
+            self.logger.warning('position command: %s', command)
+            packet = self.protocol.format_packet(command, self.num_serial)
+        else:
+            self.logger.warning('position command nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
