@@ -179,30 +179,30 @@ class WiLightProtocol(asyncio.Protocol):
             if (packet[23:24] == b'0'):
                 motor_state = "closing"
             self.logger.warning('WiLight %s index %i, motor_state: %s', self.client.num_serial, index, motor_state)
-            cover_target = int(packet[24:27])
-            self.logger.warning('WiLight %s index %i, cover_target: %i', self.client.num_serial, index, cover_target)
-            cover_current = int(packet[27:30])
-            self.logger.warning('WiLight %s index %i, cover_current: %i', self.client.num_serial, index, cover_current)
-            states[format(index, 'x')] = {"motor_state": motor_state, "cover_target": cover_target, "cover_current": cover_current}
+            position_target = int(packet[24:27])
+            self.logger.warning('WiLight %s index %i, position_target: %i', self.client.num_serial, index, position_target)
+            position_current = int(packet[27:30])
+            self.logger.warning('WiLight %s index %i, position_current: %i', self.client.num_serial, index, position_current)
+            states[format(index, 'x')] = {"motor_state": motor_state, "position_target": position_target, "position_current": position_current}
             changed = False
             if ("motor_state" in client_state):
                 if (client_state["motor_state"] != motor_state):
                     changed = True
             else:
                 changed = True
-            if ("cover_target" in client_state):
-                if (client_state["cover_target"] != cover_target):
+            if ("position_target" in client_state):
+                if (client_state["position_target"] != position_target):
                     changed = True
             else:
                 changed = True
-            if ("cover_current" in client_state):
-                if (client_state["cover_current"] != cover_current):
+            if ("position_current" in client_state):
+                if (client_state["position_current"] != position_current):
                     changed = True
             else:
                 changed = True
             if changed:
                 changes.append(format(index, 'x'))
-                self.client.states[format(index, 'x')] = {"motor_state": motor_state, "cover_target": cover_target, "cover_current": cover_current}
+                self.client.states[format(index, 'x')] = {"motor_state": motor_state, "position_target": position_target, "position_current": position_current}
 
         self._handle_packet_end(states, changes)
 
