@@ -59,16 +59,6 @@ class WiLightProtocol(asyncio.Protocol):
         """Add incoming data to buffer."""
         self._buffer = data
         #self.logger.warning('recebeu data: %s', self._buffer)
-        #self._handle_lines()
-
-    #def _handle_lines(self):
-        #"""Assemble incoming data into packets."""
-        #if b'&' in self._buffer:
-            #packet = self._buffer[0:len(self._buffer)]
-            #if self._valid_packet(self, packet):
-            #    self._handle_packet(packet)
-            #else:
-            #    self.logger.warning('dropping invalid data: %s', packet)
         if self._valid_packet(self, self._buffer):
             self._handle_packet(self._buffer)
         else:
@@ -81,16 +71,16 @@ class WiLightProtocol(asyncio.Protocol):
             return False
         self.logger.warning('len de %s: %i', self.client.model, len(packet))
         if self.client.model == "0100":
-            if len(packet) < 60:
+            if len(packet) < 90:
                 return False
         elif self.client.model == "0102":
-            if len(packet) < 60:
+            if len(packet) < 84:
                 return False
         elif self.client.model == "0104":
-            if len(packet) < 40:
+            if len(packet) < 51:
                 return False
         elif self.client.model == "0105":
-            if len(packet) < 60:
+            if len(packet) < 81:
                 return False
         b_num_serial = self.client.num_serial.encode()
         #self.logger.warning('b_num_serial %s', b_num_serial)
@@ -178,6 +168,7 @@ class WiLightProtocol(asyncio.Protocol):
             client_state = self.client.states.get(format(index, 'x'), None)
             if client_state is None:
                 client_state = {}
+
             if index == 0:
 
                 on = (packet[23:24] == b'1')
@@ -315,10 +306,15 @@ class WiLightProtocol(asyncio.Protocol):
 class WiLightClient:
     """WiLight client wrapper class."""
 
-    def __init__(self, device_id, host, port, model, config_ex,
+    #def __init__(self, device_id, host, port, model, config_ex,
+    #             disconnect_callback=None, reconnect_callback=None,
+    #             loop=None, logger=None, timeout=10, reconnect_interval=10,
+    #             keep_alive_interval=3):
+    def __init__(self, device_id=None, host=None,
+                 port=None, model=None, config_ex=None,
                  disconnect_callback=None, reconnect_callback=None,
-                 loop=None, logger=None, timeout=10, reconnect_interval=10,
-                 keep_alive_interval=3):
+                 loop=None, logger=None, timeout=None, reconnect_interval=None,
+                 keep_alive_interval=None):
         """Initialize the WiLight client wrapper."""
         if loop:
             self.loop = loop
