@@ -175,8 +175,8 @@ class WiLightProtocol(asyncio.Protocol):
                 if ("on" in client_state):
                     if (client_state["on"] is not on):
                         changed = True
-                    else:
-                        changed = True
+                else:
+                    changed = True
                 if changed:
                     changes.append(format(index, 'x'))
                     self.client.states[format(index, 'x')] = {"on": on}
