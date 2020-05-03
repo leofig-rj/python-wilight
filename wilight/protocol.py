@@ -94,6 +94,8 @@ class WiLightProtocol(asyncio.Protocol):
             self._handle_0100_packet(packet)
         elif self.client.model == "0102":
             self._handle_0102_packet(packet)
+        elif self.client.model == "0104":
+            self._handle_0104_packet(packet)
         elif self.client.model == "0105":
             self._handle_0105_packet(packet)
 
@@ -151,6 +153,63 @@ class WiLightProtocol(asyncio.Protocol):
             if changed:
                 changes.append(format(index, 'x'))
                 self.client.states[format(index, 'x')] = {"on": on}
+
+        self._handle_packet_end(states, changes)
+
+    def _handle_0104_packet(self, packet):
+        """Parse incoming packet."""
+        self._reset_timeout()
+        states = {}
+        changes = []
+        for index in range(0, 2):
+
+            client_state = self.client.states.get(format(index, 'x'), None)
+            if client_state is None:
+                client_state = {}
+            if index == 0:
+
+                on = (packet[23:24] == b'1')
+                self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
+                states[format(index, 'x')] = {"on": on}
+                changed = False
+                if ("on" in client_state):
+                    if (client_state["on"] is not on):
+                        changed = True
+                    else:
+                        changed = True
+                if changed:
+                    changes.append(format(index, 'x'))
+                    self.client.states[format(index, 'x')] = {"on": on}
+
+            elif index == 1:
+
+                direction = "off"
+                if (packet[24:25] == b'0'):
+                    direction = "forward"
+                if (packet[24:25] == b'2'):
+                    direction = "reverse"
+                self.logger.warning('WiLight %s index %i, direction: %s', self.client.num_serial, index, direction)
+                speed = "low"
+                if (packet[25:26] == b'1'):
+                    speed = "medium"
+                if (packet[25:26] == b'2'):
+                    speed = "high"
+                self.logger.warning('WiLight %s index %i, speed: %s', self.client.num_serial, index, speed)
+                states[format(index, 'x')] = {"direction": direction, "speed": speed}
+                changed = False
+                if ("direction" in client_state):
+                    if (client_state["direction"] != direction):
+                        changed = True
+                else:
+                    changed = True
+                if ("speed" in client_state):
+                    if (client_state["speed"] != speed):
+                        changed = True
+                else:
+                    changed = True
+                if changed:
+                    changes.append(format(index, 'x'))
+                    self.client.states[format(index, 'x')] = {"direction": direction, "speed": speed}
 
         self._handle_packet_end(states, changes)
 
@@ -376,6 +435,42 @@ class WiLightClient:
             packet = self.protocol.format_packet(command, self.num_serial)
         else:
             self.logger.warning('brightness command nok')
+            packet = self.protocol.format_packet("000000", self.num_serial)
+        states = await self._send(packet)
+        return states
+
+    async def set_fan_direction(self, index=None, direction=None):
+        """Set fan direction."""
+        if (index is not None and direction is not None):
+            command = "000000"
+            if direction == "forward":
+                command = "003000"
+            elif direction == "off":
+                command = "004000"
+            elif direction == "reverse":
+                command = "005000"
+            self.logger.warning('direction command: %s', command)
+            packet = self.protocol.format_packet(command, self.num_serial)
+        else:
+            self.logger.warning('direction command nok')
+            packet = self.protocol.format_packet("000000", self.num_serial)
+        states = await self._send(packet)
+        return states
+
+    async def set_fan_speed(self, index=None, speed=None):
+        """Set fan speed."""
+        if (index is not None and speed is not None):
+            command = "000000"
+            if speed == "low":
+                command = "006000"
+            elif speed == "medium":
+                command = "007003000"
+            elif speed == "high":
+                command = "008000"
+            self.logger.warning('speed command: %s', command)
+            packet = self.protocol.format_packet(command, self.num_serial)
+        else:
+            self.logger.warning('direction command nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
