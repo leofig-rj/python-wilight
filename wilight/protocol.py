@@ -70,14 +70,20 @@ class WiLightProtocol(asyncio.Protocol):
         if packet[0:1] != b'&':
             return False
         self.logger.warning('len de %s: %i', self.client.model, len(packet))
-        if self.client.model == "0100":
+        if self.client.model == "0001":
+            if len(packet) < 30:
+                return False
+        elif self.client.model == "0002":
+            if len(packet) < 30:
+                return False
+        elif self.client.model == "0100":
             if len(packet) < 90:
                 return False
         elif self.client.model == "0102":
             if len(packet) < 84:
                 return False
         elif self.client.model == "0103":
-            if len(packet) < 40:
+            if len(packet) < 82:
                 return False
         elif self.client.model == "0104":
             if len(packet) < 51:
@@ -95,7 +101,11 @@ class WiLightProtocol(asyncio.Protocol):
     def _handle_packet(self, packet):
         """Parse incoming packet."""
         #self.logger.warning('handle data: %s', packet)
-        if self.client.model == "0100":
+        if self.client.model == "0001":
+            self._handle_0001_packet(packet)
+        elif self.client.model == "0002":
+            self._handle_0002_packet(packet)
+        elif self.client.model == "0100":
             self._handle_0100_packet(packet)
         elif self.client.model == "0102":
             self._handle_0102_packet(packet)
@@ -105,6 +115,56 @@ class WiLightProtocol(asyncio.Protocol):
             self._handle_0104_packet(packet)
         elif self.client.model == "0105":
             self._handle_0105_packet(packet)
+
+    def _handle_0001_packet(self, packet):
+        """Parse incoming packet."""
+        self._reset_timeout()
+        states = {}
+        changes = []
+        for index in range(0, 1):
+
+            client_state = self.client.states.get(format(index, 'x'), None)
+            if client_state is None:
+                client_state = {}
+            on = (packet[23+index:24+index] == b'1')
+            self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
+            states[format(index, 'x')] = {"on": on}
+            changed = False
+            if ("on" in client_state):
+                if (client_state["on"] is not on):
+                    changed = True
+            else:
+                changed = True
+            if changed:
+                changes.append(format(index, 'x'))
+                self.client.states[format(index, 'x')] = {"on": on}
+
+        self._handle_packet_end(states, changes)
+
+    def _handle_0002_packet(self, packet):
+        """Parse incoming packet."""
+        self._reset_timeout()
+        states = {}
+        changes = []
+        for index in range(0, 3):
+
+            client_state = self.client.states.get(format(index, 'x'), None)
+            if client_state is None:
+                client_state = {}
+            on = (packet[23+index:24+index] == b'1')
+            self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
+            states[format(index, 'x')] = {"on": on}
+            changed = False
+            if ("on" in client_state):
+                if (client_state["on"] is not on):
+                    changed = True
+            else:
+                changed = True
+            if changed:
+                changes.append(format(index, 'x'))
+                self.client.states[format(index, 'x')] = {"on": on}
+
+        self._handle_packet_end(states, changes)
 
     def _handle_0100_packet(self, packet):
         """Parse incoming packet."""
