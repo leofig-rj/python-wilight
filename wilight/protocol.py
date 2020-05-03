@@ -78,7 +78,7 @@ class WiLightProtocol(asyncio.Protocol):
         if packet[0:1] != b'&':
             return False
         #self.logger.warning('len %i', len(packet))
-        if len(packet) < 60:
+        if len(packet) < 40:
             return False
         b_num_serial = self.client.num_serial.encode()
         #self.logger.warning('b_num_serial %s', b_num_serial)
