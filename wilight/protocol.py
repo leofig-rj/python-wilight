@@ -57,29 +57,41 @@ class WiLightProtocol(asyncio.Protocol):
 
     def data_received(self, data):
         """Add incoming data to buffer."""
-#        self._buffer += data
         self._buffer = data
         #self.logger.warning('recebeu data: %s', self._buffer)
-        self._handle_lines()
+        #self._handle_lines()
 
-    def _handle_lines(self):
-        """Assemble incoming data into per-line packets."""
-        if b'&' in self._buffer:
-            line = self._buffer[0:len(self._buffer)]
-            if self._valid_packet(self, line):
-                #self.logger.warning('recebeu data valida')
-                self._handle_packet(line)
-            else:
-                self.logger.warning('dropping invalid data: %s', line)
+    #def _handle_lines(self):
+        #"""Assemble incoming data into packets."""
+        #if b'&' in self._buffer:
+            #packet = self._buffer[0:len(self._buffer)]
+            #if self._valid_packet(self, packet):
+            #    self._handle_packet(packet)
+            #else:
+            #    self.logger.warning('dropping invalid data: %s', packet)
+        if self._valid_packet(self, self._buffer):
+            self._handle_packet(self._buffer)
+        else:
+            self.logger.warning('dropping invalid data: %s', self._buffer)
 
     @staticmethod
     def _valid_packet(self, packet):
         """Validate incoming packet."""
         if packet[0:1] != b'&':
             return False
-        #self.logger.warning('len %i', len(packet))
-        if len(packet) < 40:
-            return False
+        self.logger.warning('len de %s: %i', self.client.model, len(packet))
+        if self.client.model == "0100":
+            if len(packet) < 60:
+                return False
+        elif self.client.model == "0102":
+            if len(packet) < 60:
+                return False
+        elif self.client.model == "0104":
+            if len(packet) < 40:
+                return False
+        elif self.client.model == "0105":
+            if len(packet) < 60:
+                return False
         b_num_serial = self.client.num_serial.encode()
         #self.logger.warning('b_num_serial %s', b_num_serial)
         for i in range(0, 12):
