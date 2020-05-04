@@ -71,10 +71,10 @@ class WiLightProtocol(asyncio.Protocol):
             return False
         self.logger.warning('len de %s: %i', self.client.model, len(packet))
         if self.client.model == "0001":
-            if len(packet) < 30:
+            if len(packet) < 80:
                 return False
         elif self.client.model == "0002":
-            if len(packet) < 30:
+            if len(packet) < 82:
                 return False
         elif self.client.model == "0100":
             if len(packet) < 90:
@@ -90,6 +90,9 @@ class WiLightProtocol(asyncio.Protocol):
                 return False
         elif self.client.model == "0105":
             if len(packet) < 81:
+                return False
+        elif self.client.model == "0107":
+            if len(packet) < 40:
                 return False
         b_num_serial = self.client.num_serial.encode()
         #self.logger.warning('b_num_serial %s', b_num_serial)
@@ -115,6 +118,8 @@ class WiLightProtocol(asyncio.Protocol):
             self._handle_0104_packet(packet)
         elif self.client.model == "0105":
             self._handle_0105_packet(packet)
+        elif self.client.model == "0107":
+            self._handle_0107_packet(packet)
 
     def _handle_0001_packet(self, packet):
         """Parse incoming packet."""
@@ -363,6 +368,52 @@ class WiLightProtocol(asyncio.Protocol):
 
         self._handle_packet_end(states, changes)
 
+    def _handle_0107_packet(self, packet):
+        """Parse incoming packet."""
+        self._reset_timeout()
+        states = {}
+        changes = []
+        for index in range(0, 1):
+
+            client_state = self.client.states.get(format(index, 'x'), None)
+            if client_state is None:
+                client_state = {}
+            on = (packet[23:24] == b'1')
+            self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
+            hue = int(packet[36:39])
+            self.logger.warning('WiLight %s index %i, hue: %i', self.client.num_serial, index, hue)
+            saturation = int(packet[39:42])
+            self.logger.warning('WiLight %s index %i, saturation: %i', self.client.num_serial, index, saturation)
+            brightness = int(packet[42:45])
+            self.logger.warning('WiLight %s index %i, brightness: %i', self.client.num_serial, index, brightness)
+            states[format(index, 'x')] = {"on": on, "hue": hue, "saturation": saturation, "brightness": brightness}
+            changed = False
+            if ("on" in client_state):
+                if (client_state["on"] is not on):
+                    changed = True
+            else:
+                changed = True
+            if ("hue" in client_state):
+                if (client_state["hue"] != hue):
+                    changed = True
+            else:
+                changed = True
+            if ("saturation" in client_state):
+                if (client_state["saturation"] != saturation):
+                    changed = True
+            else:
+                changed = True
+            if ("brightness" in client_state):
+                if (client_state["brightness"] != brightness):
+                    changed = True
+            else:
+                changed = True
+            if changed:
+                changes.append(format(index, 'x'))
+                self.client.states[format(index, 'x')] = {"on": on, "hue": hue, "saturation": saturation, "brightness": brightness}
+
+        self._handle_packet_end(states, changes)
+
     def _handle_packet_end(self, states, changes):
         """Finalizes packet handling."""
         for index in changes:
@@ -547,6 +598,30 @@ class WiLightClient:
             packet = self.protocol.format_packet(command, self.num_serial)
         else:
             self.logger.warning('brightness command nok')
+            packet = self.protocol.format_packet("000000", self.num_serial)
+        states = await self._send(packet)
+        return states
+
+    async def set_hs_color(self, index=None, hue=None, saturation=None):
+        """Set device's hue and saturation."""
+        if (index is not None and hue is not None and saturation is not None):
+            command = "012006" + '{:0>3}'.format(hue) + '{:0>3}'.format(saturation)
+            self.logger.warning('hue_saturation command: %s', command)
+            packet = self.protocol.format_packet(command, self.num_serial)
+        else:
+            self.logger.warning('hue_saturation command nok')
+            packet = self.protocol.format_packet("000000", self.num_serial)
+        states = await self._send(packet)
+        return states
+
+    async def set_hsb_color(self, index=None, hue=None, saturation=None, brightness=None):
+        """Set device's hue and saturation."""
+        if (index is not None and hue is not None and saturation is not None and brightness is not None):
+            command = "011009" + '{:0>3}'.format(hue) + '{:0>3}'.format(saturation) + '{:0>3}'.format(brightness)
+            self.logger.warning('hue_sat_bri command: %s', command)
+            packet = self.protocol.format_packet(command, self.num_serial)
+        else:
+            self.logger.warning('hue_sat_bri command nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
