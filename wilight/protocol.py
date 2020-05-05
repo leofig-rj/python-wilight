@@ -33,7 +33,7 @@ class WiLightProtocol(asyncio.Protocol):
         if not self.client.in_transaction:
             packet = self.format_packet("000000", self.client.num_serial)
             #self.logger.warning('sending packet keep alive: %s', packet)
-            self.logger.debug('sending keep alive packet')
+            #self.logger.debug('sending keep alive packet')
             self.transport.write(packet)
 
     def _reset_timeout(self):
@@ -62,14 +62,14 @@ class WiLightProtocol(asyncio.Protocol):
         if self._valid_packet(self, self._buffer):
             self._handle_packet(self._buffer)
         else:
-            self.logger.warning('dropping invalid data: %s', self._buffer)
+            self.logger.warning('WiLight %s dropping invalid data: %s', self.client.num_serial, self._buffer)
 
     @staticmethod
     def _valid_packet(self, packet):
         """Validate incoming packet."""
         if packet[0:1] != b'&':
             return False
-        self.logger.warning('len de %s: %i', self.client.model, len(packet))
+        #self.logger.warning('len de %s: %i', self.client.model, len(packet))
         if self.client.model == "0001":
             if len(packet) < 80:
                 return False
@@ -132,7 +132,7 @@ class WiLightProtocol(asyncio.Protocol):
             if client_state is None:
                 client_state = {}
             on = (packet[23+index:24+index] == b'1')
-            self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
+            #self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
             states[format(index, 'x')] = {"on": on}
             changed = False
             if ("on" in client_state):
@@ -157,7 +157,7 @@ class WiLightProtocol(asyncio.Protocol):
             if client_state is None:
                 client_state = {}
             on = (packet[23+index:24+index] == b'1')
-            self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
+            #self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
             states[format(index, 'x')] = {"on": on}
             changed = False
             if ("on" in client_state):
@@ -182,9 +182,9 @@ class WiLightProtocol(asyncio.Protocol):
             if client_state is None:
                 client_state = {}
             on = (packet[23+index:24+index] == b'1')
-            self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
+            #self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
             brightness = int(packet[26+3*index:29+3*index])
-            self.logger.warning('WiLight %s index %i, brightness: %i', self.client.num_serial, index, brightness)
+            #self.logger.warning('WiLight %s index %i, brightness: %i', self.client.num_serial, index, brightness)
             states[format(index, 'x')] = {"on": on, "brightness": brightness}
             changed = False
             if ("on" in client_state):
@@ -214,7 +214,7 @@ class WiLightProtocol(asyncio.Protocol):
             if client_state is None:
                 client_state = {}
             on = (packet[23+index:24+index] == b'1')
-            self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
+            #self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
             states[format(index, 'x')] = {"on": on}
             changed = False
             if ("on" in client_state):
@@ -243,11 +243,11 @@ class WiLightProtocol(asyncio.Protocol):
                 motor_state = "opening"
             if (packet[23:24] == b'0'):
                 motor_state = "closing"
-            self.logger.warning('WiLight %s index %i, motor_state: %s', self.client.num_serial, index, motor_state)
+            #self.logger.warning('WiLight %s index %i, motor_state: %s', self.client.num_serial, index, motor_state)
             position_target = int(packet[24:27])
-            self.logger.warning('WiLight %s index %i, position_target: %i', self.client.num_serial, index, position_target)
+            #self.logger.warning('WiLight %s index %i, position_target: %i', self.client.num_serial, index, position_target)
             position_current = int(packet[27:30])
-            self.logger.warning('WiLight %s index %i, position_current: %i', self.client.num_serial, index, position_current)
+            #self.logger.warning('WiLight %s index %i, position_current: %i', self.client.num_serial, index, position_current)
             states[format(index, 'x')] = {"motor_state": motor_state, "position_target": position_target, "position_current": position_current}
             changed = False
             if ("motor_state" in client_state):
@@ -285,7 +285,7 @@ class WiLightProtocol(asyncio.Protocol):
             if index == 0:
 
                 on = (packet[23:24] == b'1')
-                self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
+                #self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
                 states[format(index, 'x')] = {"on": on}
                 changed = False
                 if ("on" in client_state):
@@ -304,13 +304,13 @@ class WiLightProtocol(asyncio.Protocol):
                     direction = "forward"
                 if (packet[24:25] == b'2'):
                     direction = "reverse"
-                self.logger.warning('WiLight %s index %i, direction: %s', self.client.num_serial, index, direction)
+                #self.logger.warning('WiLight %s index %i, direction: %s', self.client.num_serial, index, direction)
                 speed = "low"
                 if (packet[25:26] == b'1'):
                     speed = "medium"
                 if (packet[25:26] == b'2'):
                     speed = "high"
-                self.logger.warning('WiLight %s index %i, speed: %s', self.client.num_serial, index, speed)
+                #self.logger.warning('WiLight %s index %i, speed: %s', self.client.num_serial, index, speed)
                 states[format(index, 'x')] = {"direction": direction, "speed": speed}
                 changed = False
                 if ("direction" in client_state):
@@ -340,11 +340,11 @@ class WiLightProtocol(asyncio.Protocol):
             if client_state is None:
                 client_state = {}
             on = (packet[23+index:24+index] == b'1')
-            self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
+            #self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
             timer_target = int(packet[25+5*index:30+5*index])
-            self.logger.warning('WiLight %s index %i, timer_target: %i', self.client.num_serial, index, timer_target)
+            #self.logger.warning('WiLight %s index %i, timer_target: %i', self.client.num_serial, index, timer_target)
             timer_current = int(packet[35+5*index:40+5*index])
-            self.logger.warning('WiLight %s index %i, timer_current: %i', self.client.num_serial, index, timer_current)
+            #self.logger.warning('WiLight %s index %i, timer_current: %i', self.client.num_serial, index, timer_current)
             states[format(index, 'x')] = {"on": on, "timer_target": timer_target, "timer_current": timer_current}
             changed = False
             if ("on" in client_state):
@@ -379,13 +379,13 @@ class WiLightProtocol(asyncio.Protocol):
             if client_state is None:
                 client_state = {}
             on = (packet[23:24] == b'1')
-            self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
+            #self.logger.warning('WiLight %s index %i, on: %s', self.client.num_serial, index, on)
             hue = int(packet[36:39])
-            self.logger.warning('WiLight %s index %i, hue: %i', self.client.num_serial, index, hue)
+            #self.logger.warning('WiLight %s index %i, hue: %i', self.client.num_serial, index, hue)
             saturation = int(packet[39:42])
-            self.logger.warning('WiLight %s index %i, saturation: %i', self.client.num_serial, index, saturation)
+            #self.logger.warning('WiLight %s index %i, saturation: %i', self.client.num_serial, index, saturation)
             brightness = int(packet[42:45])
-            self.logger.warning('WiLight %s index %i, brightness: %i', self.client.num_serial, index, brightness)
+            #self.logger.warning('WiLight %s index %i, brightness: %i', self.client.num_serial, index, brightness)
             states[format(index, 'x')] = {"on": on, "hue": hue, "saturation": saturation, "brightness": brightness}
             changed = False
             if ("on" in client_state):
@@ -419,7 +419,7 @@ class WiLightProtocol(asyncio.Protocol):
         for index in changes:
             for status_cb in self.client.status_callbacks.get(index, []):
                 status_cb(states[index])
-        self.logger.debug(states)
+        #self.logger.debug(states)
         if self.client.in_transaction:
             self.client.in_transaction = False
             self.client.active_packet = None
@@ -715,7 +715,7 @@ class WiLightClient:
                 state = states[index]
             else:
                 packet = self.protocol.format_packet("000000", self.num_serial)
-                self.logger.warning('sending packet status 1: %s', packet)
+                #self.logger.warning('sending packet status 1: %s', packet)
                 states = await self._send(packet)
                 state = states[index]
         else:
@@ -725,7 +725,7 @@ class WiLightClient:
                 state = await fut
             else:
                 packet = self.protocol.format_packet("000000", self.num_serial)
-                self.logger.warning('sending packet status 1: %s', packet)
+                #self.logger.warning('sending packet status 1: %s', packet)
                 state = await self._send(packet)
         return state
 
