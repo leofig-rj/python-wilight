@@ -692,6 +692,19 @@ class WiLightClient:
         states = await self._send(packet)
         return states
 
+    async def set_switch_time(self, index=None, target_time=None):
+        """Set cover position."""
+        if (index is not None and target_time is not None):
+            commands_target_time = ["005003", "006003"]
+            command = commands_target_time[int(index)] + '{:0>5}'.format(target_time)
+            self.logger.warning('target_time command: %s', command)
+            packet = self.protocol.format_packet(command, self.num_serial)
+        else:
+            self.logger.warning('target_time command nok')
+            packet = self.protocol.format_packet("000000", self.num_serial)
+        states = await self._send(packet)
+        return states
+
     async def status(self, index=None):
         """Get current device status."""
         if index is not None:
