@@ -32,7 +32,6 @@ class WiLightProtocol(asyncio.Protocol):
         """Send a keep alive packet."""
         if not self.client.in_transaction:
             packet = self.format_packet("000000", self.client.num_serial)
-            #self.logger.warning('sending packet keep alive: %s', packet)
             #self.logger.debug('sending keep alive packet')
             self.transport.write(packet)
 
@@ -62,7 +61,9 @@ class WiLightProtocol(asyncio.Protocol):
         if self._valid_packet(self, self._buffer):
             self._handle_packet(self._buffer)
         else:
-            self.logger.warning('WiLight %s dropping invalid data: %s', self.client.num_serial, self._buffer)
+            if self._buffer[0:1] != b'%':
+                #self.logger.warning('WiLight %s dropping invalid data: %s', self.client.num_serial, self._buffer)
+                self.logger.debug('WiLight %s dropping invalid data: %s', self.client.num_serial, self._buffer)
 
     @staticmethod
     def _valid_packet(self, packet):
@@ -594,10 +595,10 @@ class WiLightClient:
         if (index is not None and brightness is not None):
             commands_brigthness = ["007003", "008003", "009003"]
             command = commands_brigthness[int(index)] + '{:0>3}'.format(brightness)
-            self.logger.warning('brightness command: %s', command)
+            #self.logger.warning('brightness command: %s', command)
             packet = self.protocol.format_packet(command, self.num_serial)
         else:
-            self.logger.warning('brightness command nok')
+            #self.logger.warning('brightness command nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
@@ -606,22 +607,22 @@ class WiLightClient:
         """Set device's hue and saturation."""
         if (index is not None and hue is not None and saturation is not None):
             command = "012006" + '{:0>3}'.format(hue) + '{:0>3}'.format(saturation)
-            self.logger.warning('hue_saturation command: %s', command)
+            #self.logger.warning('hue_saturation command: %s', command)
             packet = self.protocol.format_packet(command, self.num_serial)
         else:
-            self.logger.warning('hue_saturation command nok')
+            #self.logger.warning('hue_saturation command nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
 
     async def set_hsb_color(self, index=None, hue=None, saturation=None, brightness=None):
-        """Set device's hue and saturation."""
+        """Set device's hue, saturation and brightness."""
         if (index is not None and hue is not None and saturation is not None and brightness is not None):
             command = "011009" + '{:0>3}'.format(hue) + '{:0>3}'.format(saturation) + '{:0>3}'.format(brightness)
-            self.logger.warning('hue_sat_bri command: %s', command)
+            #self.logger.warning('hue_sat_bri command: %s', command)
             packet = self.protocol.format_packet(command, self.num_serial)
         else:
-            self.logger.warning('hue_sat_bri command nok')
+            #self.logger.warning('hue_sat_bri command nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
@@ -636,10 +637,10 @@ class WiLightClient:
                 command = "004000"
             elif direction == "reverse":
                 command = "005000"
-            self.logger.warning('direction command: %s', command)
+            #self.logger.warning('direction command: %s', command)
             packet = self.protocol.format_packet(command, self.num_serial)
         else:
-            self.logger.warning('direction command nok')
+            #self.logger.warning('direction command nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
@@ -654,10 +655,10 @@ class WiLightClient:
                 command = "007000"
             elif speed == "high":
                 command = "008000"
-            self.logger.warning('speed command: %s', command)
+            #self.logger.warning('speed command: %s', command)
             packet = self.protocol.format_packet(command, self.num_serial)
         else:
-            self.logger.warning('direction command nok')
+            #self.logger.warning('direction command nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
@@ -672,10 +673,10 @@ class WiLightClient:
                 command = "002000"
             elif cv_command == "stop":
                 command = "003000"
-            self.logger.warning('cover command: %s', command)
+            #self.logger.warning('cover command: %s', command)
             packet = self.protocol.format_packet(command, self.num_serial)
         else:
-            self.logger.warning('cover command nok')
+            #self.logger.warning('cover command nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
@@ -684,23 +685,23 @@ class WiLightClient:
         """Set cover position."""
         if (index is not None and position is not None):
             command = "007003" + '{:0>3}'.format(position)
-            self.logger.warning('position command: %s', command)
+            #self.logger.warning('position command: %s', command)
             packet = self.protocol.format_packet(command, self.num_serial)
         else:
-            self.logger.warning('position command nok')
+            #self.logger.warning('position command nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
 
     async def set_switch_time(self, index=None, target_time=None):
-        """Set cover position."""
+        """Set switch time."""
         if (index is not None and target_time is not None):
-            commands_target_time = ["005003", "006003"]
+            commands_target_time = ["005005", "006005"]
             command = commands_target_time[int(index)] + '{:0>5}'.format(target_time)
-            self.logger.warning('target_time command: %s', command)
+            #self.logger.warning('target_time command: %s', command)
             packet = self.protocol.format_packet(command, self.num_serial)
         else:
-            self.logger.warning('target_time command nok')
+            #self.logger.warning('target_time command nok')
             packet = self.protocol.format_packet("000000", self.num_serial)
         states = await self._send(packet)
         return states
@@ -715,7 +716,7 @@ class WiLightClient:
                 state = states[index]
             else:
                 packet = self.protocol.format_packet("000000", self.num_serial)
-                #self.logger.warning('sending packet status 1: %s', packet)
+                #self.logger.warning('sending packet status: %s', packet)
                 states = await self._send(packet)
                 state = states[index]
         else:
@@ -725,7 +726,7 @@ class WiLightClient:
                 state = await fut
             else:
                 packet = self.protocol.format_packet("000000", self.num_serial)
-                #self.logger.warning('sending packet status 1: %s', packet)
+                #self.logger.warning('sending packet status: %s', packet)
                 state = await self._send(packet)
         return state
 
