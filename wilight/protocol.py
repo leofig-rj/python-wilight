@@ -419,6 +419,8 @@ class WiLightProtocol(asyncio.Protocol):
         """Finalizes packet handling."""
         for index in changes:
             for status_cb in self.client.status_callbacks.get(index, []):
+                # Sending states by Callbak to the index
+                self.logger.warning('enviando callback %s index %s : %s', self.client.device_id, index, states[index])
                 status_cb(states[index])
         #self.logger.debug(states)
         if self.client.in_transaction:
@@ -553,6 +555,7 @@ class WiLightClient:
 
     def register_status_callback(self, callback, index):
         """Register a callback which will fire when state changes."""
+        self.logger.warning('register_status_callback %s : %s, %s', self.device_id, index, callback)
         if self.status_callbacks.get(index, None) is None:
             self.status_callbacks[index] = []
         self.status_callbacks[index].append(callback)
